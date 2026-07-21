@@ -1,0 +1,540 @@
+/* ============================================================
+   ARCTIC ICE CAVE — cold blue-white theme
+   J-ANOS GRAPHIX branded.
+    Frosted palette, icy tones, thin mono UI pinned to corners.
+   ============================================================ */
+
+:root {
+  --stage: #b8d4e8;        /* ice blue — must match scene.js STAGE */
+  --ink: #e8f4ff;          /* frost white UI text */
+  --ink-dark: #2a4060;     /* deep ice blue for shadows */
+  --ink-dim: rgba(200, 224, 244, 0.55);
+  --aurora: #80e0b0;       /* aurora green accent */
+  --ice-glow: #a0d8f0;     /* pale ice glow */
+  --font-mono: "Consolas", "SF Mono", "Roboto Mono", monospace;
+}
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+html { scroll-behavior: auto; }
+
+body {
+  background: var(--stage);
+  color: var(--ink);
+  font-family: var(--font-mono);
+  overflow-x: hidden;
+  overflow-y: auto;
+}
+
+/* ---- WebGL canvas [REQUIRED] ------------------------------- */
+#webgl {
+  position: fixed;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  display: block;
+  z-index: 0;
+}
+
+/* ---- background data layer --------------------------------- */
+#data-layer {
+  position: fixed;
+  inset: 0;
+  z-index: 1;
+  overflow: hidden;
+  pointer-events: none;
+  opacity: 0.1;
+}
+.data-layer__token {
+  position: absolute;
+  color: #a0d0e8;
+  letter-spacing: 0.35em;
+  white-space: nowrap;
+  font-weight: 700;
+}
+
+/* ---- HUD callouts [REQUIRED] ------------------------------- */
+#hud, #hud-lines {
+  position: fixed;
+  inset: 0;
+  z-index: 6;
+  pointer-events: none;
+}
+#hud-lines { width: 100%; height: 100%; }
+.hud__line {
+  stroke: rgba(200, 224, 244, 0.85);
+  stroke-width: 1;
+}
+.hud__callout { opacity: 0; }
+.hud__label, .hud__temp, .hud__cta {
+  position: absolute;
+  top: 0; left: 0;
+  font-size: 12px;
+  letter-spacing: 0.14em;
+  line-height: 1.6;
+  color: var(--ink);
+  text-shadow: 0 0 6px rgba(42, 64, 96, 0.35);
+  white-space: nowrap;
+}
+.hud__label { display: flex; flex-direction: column; }
+.hud__id { font-weight: 700; }
+.hud__title { color: var(--ink-dim); }
+.hud__temp { display: flex; flex-direction: column; align-items: flex-end; }
+.hud__temp span:first-child { font-weight: 700; }
+.hud__cta { display: flex; flex-direction: column; align-items: flex-end; }
+.hud__cta span:last-child { font-weight: 700; }
+.hud__date { color: var(--ink-dim); }
+
+/* ---- whiteout overlay [REQUIRED] --------------------------- */
+#whiteout {
+  position: fixed;
+  inset: 0;
+  z-index: 4;
+  pointer-events: none;
+  background: radial-gradient(ellipse at 50% 45%,
+    rgba(180, 210, 235, 1) 0%,
+    rgba(140, 180, 210, 1) 100%);
+  opacity: 0;
+}
+
+/* ---- ring flash — pulse when passing through portal rings --- */
+#ring-flash {
+  position: fixed;
+  inset: 0;
+  z-index: 5;
+  pointer-events: none;
+  background: radial-gradient(circle at 50% 50%,
+    rgba(200, 240, 255, 0.9) 0%,
+    rgba(140, 210, 240, 0.4) 40%,
+    rgba(100, 180, 220, 0) 70%);
+  opacity: 0;
+  transition: opacity 0.1s ease-out;
+}
+
+/* ---- loop flash — warp teleport from footer back to hero ------ */
+#loop-flash {
+  position: fixed;
+  inset: 0;
+  z-index: 15;
+  pointer-events: none;
+  background: radial-gradient(circle at 50% 50%,
+    rgba(220, 245, 255, 1) 0%,
+    rgba(160, 220, 245, 0.9) 30%,
+    rgba(120, 190, 230, 0.6) 60%,
+    rgba(80, 160, 210, 0) 100%);
+  opacity: 0;
+}
+
+/* ---- corner UI ---------------------------------------------- */
+.corner {
+  position: fixed;
+  z-index: 10;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  font-size: 11px;
+  letter-spacing: 0.16em;
+  line-height: 1.7;
+}
+.corner--tl { top: 26px; left: 32px; }
+.corner--tr { top: 26px; right: 32px; align-items: flex-end; text-align: right; }
+.corner--bl { bottom: 26px; left: 32px; }
+
+.logo {
+  color: var(--ink);
+  text-decoration: none;
+  font-size: 22px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-shadow: 0 0 14px rgba(160, 216, 240, 0.9), 0 0 40px rgba(100, 180, 220, 0.5);
+}
+
+.corner__block { display: flex; flex-direction: column; color: var(--ink-dim); }
+.corner__kicker { font-weight: 700; color: var(--ink); }
+.corner__manifesto {
+  max-width: 240px;
+  color: var(--ink-dim);
+  font-size: 11px;
+}
+
+.corner__sound {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: none;
+  border: none;
+  color: var(--ink);
+  font: inherit;
+  letter-spacing: inherit;
+  cursor: pointer;
+}
+.corner__hint { color: var(--ink-dim); }
+
+/* ---- loader -------------------------------------------------- */
+#loader {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--stage);
+  transition: opacity 0.7s ease;
+}
+#loader.is-done { opacity: 0; pointer-events: none; }
+#loader-bar {
+  font-size: 11px;
+  letter-spacing: 0.4em;
+  color: var(--ink);
+  text-shadow: 0 1px 6px rgba(180, 212, 232, 0.3);
+}
+
+/* ---- scroll beats [REQUIRED] ------------------------------- */
+.beat {
+  position: relative;
+  min-height: 100vh;
+  z-index: 5;
+  pointer-events: none;
+}
+.beat--footer {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  align-items: center;
+  padding-bottom: 0;
+  gap: 20px;
+}
+.beat--footer .footer__links,
+.beat--footer .footer__links a {
+  pointer-events: auto;
+  cursor: pointer;
+}
+
+/* ---- footer: bracket links ---------------------------------- */
+.footer__links {
+  display: flex;
+  gap: 44px;
+  align-items: center;
+  position: relative;
+  margin-top: 55vh;
+}
+.footer__links a {
+  position: relative;
+  color: var(--ink-dim);
+  text-decoration: none;
+  font-size: 13px;
+  letter-spacing: 0.2em;
+  padding: 10px 18px;
+  transition: color 0.25s;
+  text-shadow: 0 0 8px rgba(10, 18, 32, 0.8), 0 0 20px rgba(10, 18, 32, 0.5);
+}
+.footer__links a:hover, .footer__links a.is-active { color: var(--ink); }
+.footer__links a::before, .footer__links a::after {
+  content: '';
+  position: absolute;
+  top: 0; bottom: 0;
+  width: 8px;
+  border: 1px solid var(--ink);
+  opacity: 0;
+  transition: opacity 0.25s;
+}
+.footer__links a::before { left: 0; border-right: none; }
+.footer__links a::after { right: 0; border-left: none; }
+.footer__links a:hover::before, .footer__links a:hover::after,
+.footer__links a.is-active::before, .footer__links a.is-active::after { opacity: 1; }
+
+.footer__credit {
+  margin-top: 5rem;
+  font-size: 11px;
+  letter-spacing: 0.12em;
+  color: var(--ink-dim);
+  opacity: 0.6;
+}
+.footer__credit a {
+  color: var(--ink);
+  text-decoration: none;
+  border-bottom: 1px solid rgba(200, 224, 244, 0.3);
+  transition: color 0.2s, border-color 0.2s;
+}
+.footer__credit a:hover {
+  color: var(--ice-glow);
+  border-color: var(--ice-glow);
+}
+
+/* ---- footer tooltip with connecting line --------------------- */
+.footer-tooltip {
+  position: fixed;
+  z-index: 11;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.3s ease;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+.footer-tooltip.is-visible {
+  opacity: 1;
+}
+.footer-tooltip__card {
+  background: rgba(180, 212, 232, 0.15);
+  border: 1px solid rgba(200, 224, 244, 0.4);
+  padding: 12px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  text-decoration: none;
+  pointer-events: auto;
+  cursor: pointer;
+  transition: border-color 0.25s, background 0.25s;
+}
+.footer-tooltip__card:hover {
+  border-color: rgba(200, 224, 244, 0.7);
+  background: rgba(180, 212, 232, 0.22);
+}
+.footer-tooltip__name {
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.15em;
+  color: var(--ink);
+  text-shadow: 0 0 6px rgba(160, 216, 240, 0.4);
+}
+.footer-tooltip__url {
+  font-size: 9px;
+  letter-spacing: 0.1em;
+  color: var(--aurora);
+  word-break: break-all;
+}
+.footer-tooltip__line {
+  stroke: rgba(200, 224, 244, 0.5);
+  stroke-width: 1;
+  stroke-dasharray: 4 3;
+}
+
+/* ---- glitch text -------------------------------------------- */
+[data-glitch] { display: inline-block; }
+[data-glitch].is-glitching {
+  text-shadow:
+    1px 0 rgba(80, 140, 200, 0.6),
+   -1px 0 rgba(120, 180, 220, 0.6);
+}
+
+/* ---- scroll progress bar ------------------------------------- */
+#scroll-progress {
+  position: fixed;
+  top: 0;
+  right: 0;
+  width: 2px;
+  height: 0%;
+  background: linear-gradient(180deg, #5090b8, #3a6890);
+  z-index: 12;
+  pointer-events: none;
+  transition: height 0.1s linear;
+  box-shadow: 0 0 4px rgba(50, 100, 150, 0.3);
+}
+
+/* ---- crystal labels (typewriter) ----------------------------- */
+.crystal-label {
+  position: fixed;
+  top: 0;
+  left: 0;
+  z-index: 9;
+  pointer-events: none;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+.crystal-label__link {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  text-decoration: none;
+  pointer-events: auto;
+  cursor: pointer;
+  padding: 8px 12px;
+  border: 1px solid transparent;
+  transition: border-color 0.25s, background 0.25s;
+}
+.crystal-label__link:hover {
+  border-color: rgba(200, 224, 244, 0.4);
+  background: rgba(200, 224, 244, 0.08);
+}
+.crystal-label__title {
+  font-size: clamp(18px, 3vw, 32px);
+  font-weight: 700;
+  letter-spacing: 0.15em;
+  color: var(--ink);
+  white-space: nowrap;
+  text-shadow: 0 1px 6px rgba(180, 212, 232, 0.3);
+}
+.crystal-label__sub {
+  font-size: 9px;
+  letter-spacing: 0.25em;
+  color: var(--ink-dim);
+}
+.crystal-label__cta {
+  font-size: 10px;
+  letter-spacing: 0.2em;
+  color: var(--aurora);
+  margin-top: 4px;
+  opacity: 0;
+  transform: translateY(-4px);
+  transition: opacity 0.25s, transform 0.25s;
+}
+.crystal-label__link:hover .crystal-label__cta {
+  opacity: 1;
+  transform: translateY(0);
+}
+.crystal-label__line {
+  stroke: var(--ink-dim);
+  stroke-width: 1;
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+
+/* ---- reduced motion ------------------------------------------ */
+@media (prefers-reduced-motion: reduce) {
+  #loader { transition: none; }
+  .footer__links a { transition: none; }
+  [data-glitch].is-glitching { animation: none; text-shadow: none; }
+}
+
+/* ============================================================
+   SITE MANAGER — admin panel
+   ============================================================ */
+#site-manager {
+  position: fixed;
+  top: 0;
+  right: -380px;
+  width: 360px;
+  height: 100vh;
+  z-index: 100;
+  background: rgba(8, 14, 28, 0.96);
+  border-left: 1px solid rgba(200, 224, 244, 0.15);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  transition: right 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  overflow-y: auto;
+  pointer-events: auto;
+  font-family: var(--font-mono);
+}
+#site-manager.is-open {
+  right: 0;
+}
+
+.sm__header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 16px 20px;
+  border-bottom: 1px solid rgba(200, 224, 244, 0.1);
+}
+.sm__title {
+  font-size: 11px;
+  letter-spacing: 0.2em;
+  color: var(--ink);
+  font-weight: 700;
+}
+.sm__close {
+  background: none;
+  border: none;
+  color: var(--ink-dim);
+  font-size: 20px;
+  cursor: pointer;
+  padding: 0 4px;
+  transition: color 0.2s;
+}
+.sm__close:hover { color: var(--ink); }
+
+.sm__body {
+  padding: 16px 20px 24px;
+}
+
+.sm__group {
+  margin-bottom: 12px;
+}
+.sm__label {
+  display: block;
+  font-size: 9px;
+  letter-spacing: 0.15em;
+  color: var(--ink-dim);
+  margin-bottom: 4px;
+}
+.sm__input {
+  width: 100%;
+  background: rgba(200, 224, 244, 0.06);
+  border: 1px solid rgba(200, 224, 244, 0.12);
+  border-radius: 4px;
+  padding: 8px 10px;
+  color: var(--ink);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.05em;
+  outline: none;
+  transition: border-color 0.2s;
+}
+.sm__input:focus {
+  border-color: rgba(200, 224, 244, 0.4);
+}
+.sm__input::placeholder {
+  color: var(--ink-dim);
+  opacity: 0.4;
+}
+
+.sm__divider {
+  height: 1px;
+  background: rgba(200, 224, 244, 0.08);
+  margin: 18px 0;
+}
+
+.sm__section {
+  font-size: 10px;
+  letter-spacing: 0.18em;
+  color: var(--ice-glow);
+  margin-bottom: 14px;
+  font-weight: 700;
+}
+
+.sm__actions {
+  display: flex;
+  gap: 10px;
+}
+.sm__btn {
+  flex: 1;
+  padding: 10px 12px;
+  border: 1px solid rgba(200, 224, 244, 0.2);
+  border-radius: 4px;
+  background: rgba(200, 224, 244, 0.06);
+  color: var(--ink);
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.15em;
+  cursor: pointer;
+  transition: background 0.2s, border-color 0.2s;
+}
+.sm__btn:hover {
+  background: rgba(200, 224, 244, 0.12);
+  border-color: rgba(200, 224, 244, 0.35);
+}
+.sm__btn--save {
+  background: rgba(128, 224, 176, 0.15);
+  border-color: rgba(128, 224, 176, 0.3);
+}
+.sm__btn--save:hover {
+  background: rgba(128, 224, 176, 0.25);
+}
+.sm__btn--reset {
+  border-color: rgba(224, 128, 128, 0.3);
+}
+.sm__btn--reset:hover {
+  background: rgba(224, 128, 128, 0.1);
+}
+
+/* scrollbar */
+#site-manager::-webkit-scrollbar { width: 4px; }
+#site-manager::-webkit-scrollbar-track { background: transparent; }
+#site-manager::-webkit-scrollbar-thumb { background: rgba(200, 224, 244, 0.15); border-radius: 2px; }

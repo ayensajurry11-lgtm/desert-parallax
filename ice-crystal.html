@@ -1,0 +1,263 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Ice Crystal — logo trapped in refractive ice</title>
+<style>
+  /* ==========================================================
+     Minimal stage: full-viewport canvas, dark backdrop, a hint
+     of UI. Everything visual happens in WebGL.
+     ========================================================== */
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body { height: 100%; overflow: hidden; background: #0b0e13; }
+  #app { position: fixed; inset: 0; }
+  .hint {
+    position: fixed; bottom: 18px; left: 50%; transform: translateX(-50%);
+    font: 11px/1.6 Consolas, "Roboto Mono", monospace;
+    letter-spacing: 0.25em; color: rgba(220, 232, 244, 0.45);
+    user-select: none;
+  }
+</style>
+
+<!-- ============================================================
+     CDN setup via import map. Pin the version so `three` and the
+     addons (OrbitControls / RoomEnvironment) always match.
+     ============================================================ -->
+<script type="importmap">
+{
+  "imports": {
+    "three": "https://unpkg.com/three@0.172.0/build/three.module.js",
+    "three/addons/": "https://unpkg.com/three@0.172.0/examples/jsm/"
+  }
+}
+</script>
+</head>
+<body>
+<div id="app"></div>
+<div class="hint">DRAG TO INSPECT &nbsp;//&nbsp; SCROLL TO ZOOM</div>
+
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
+
+/* ==============================================================
+   1. RENDERER / SCENE / CAMERA
+   ============================================================== */
+const renderer = new THREE.WebGLRenderer({ antialias: true });
+renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+renderer.setSize(window.innerWidth, window.innerHeight);
+// ACES tone mapping gives the transmission highlights a filmic
+// rolloff — without it the bright refracted edges clip harshly.
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 1.15;
+document.querySelector('#app').appendChild(renderer.domElement);
+
+const scene = new THREE.Scene();
+
+/* Programmatic gradient backdrop (no external HDR file needed):
+   a tall canvas gradient — deep arctic navy fading to ink. The
+   ENVIRONMENT (what the ice refracts/reflects) is separate, below. */
+const bgCanvas = document.createElement('canvas');
+bgCanvas.width = 4; bgCanvas.height = 512;
+const bgCtx = bgCanvas.getContext('2d');
+const grad = bgCtx.createLinearGradient(0, 0, 0, 512);
+grad.addColorStop(0.0, '#1a2230');
+grad.addColorStop(0.55, '#0b0e13');
+grad.addColorStop(1.0, '#05070a');
+bgCtx.fillStyle = grad;
+bgCtx.fillRect(0, 0, 4, 512);
+const bgTex = new THREE.CanvasTexture(bgCanvas);
+bgTex.colorSpace = THREE.SRGBColorSpace;
+scene.background = bgTex;
+
+const camera = new THREE.PerspectiveCamera(
+  45, window.innerWidth / window.innerHeight, 0.1, 100
+);
+camera.position.set(0, 0.6, 6);
+
+/* ==============================================================
+   2. ENVIRONMENT MAP (the thing that makes glass visible)
+   --------------------------------------------------------------
+   Transmission + reflections sample scene.environment. Without
+   one, ice renders as a dull grey blob. RoomEnvironment is a
+   free, generated "photo studio" — bright softbox panels on a
+   neutral room — and PMREMGenerator pre-blurs it into the
+   mip-chain that roughness lookups need. The bright panels are
+   what become the sharp white edge highlights on the crystal.
+   ============================================================== */
+const pmrem = new THREE.PMREMGenerator(renderer);
+scene.environment = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
+pmrem.dispose();
+
+/* ==============================================================
+   3. THE CRYSTAL GEOMETRY — procedural jagged rock
+   --------------------------------------------------------------
+   IcosahedronGeometry(radius, 1) gives a chunky 80-face solid.
+   We then displace every vertex with deterministic hash noise
+   KEYED ON THE VERTEX POSITION — identical positions displace
+   identically, so shared corners stay welded and the mesh never
+   cracks (icosahedra store duplicated vertices per face).
+   An asymmetric scale kills the "perfect ball" silhouette.
+   ============================================================== */
+function hashNoise(x, y, z) {
+  // cheap deterministic 3D hash -> -1..1
+  const s = Math.sin(x * 127.1 + y * 311.7 + z * 74.7) * 43758.5453;
+  return (s - Math.floor(s)) * 2 - 1;
+}
+
+const crystalGeo = new THREE.IcosahedronGeometry(1.55, 1);
+{
+  const pos = crystalGeo.attributes.position;
+  const v = new THREE.Vector3();
+  for (let i = 0; i < pos.count; i++) {
+    v.fromBufferAttribute(pos, i);
+    // displace along the radial direction: rocky, not wavy
+    const n = hashNoise(v.x, v.y, v.z) * 0.22
+            + hashNoise(v.x * 2.7, v.y * 2.7, v.z * 2.7) * 0.09;
+    v.multiplyScalar(1 + n);
+    pos.setXYZ(i, v.x, v.y, v.z);
+  }
+  crystalGeo.scale(1.18, 0.92, 1.06);   // asymmetry = organic
+  crystalGeo.computeVertexNormals();     // flat facets keep their snap
+}
+
+/* ==============================================================
+   4. THE ICE MATERIAL — the physics dials
+   --------------------------------------------------------------
+   transmission 1.0 : ALL light passes through the surface and is
+                      bent by the volume — this is what lets you
+                      see (a distorted version of) the logo inside.
+   roughness 0.3    : frost. Transmission is blurred by roughness,
+                      so 0.2–0.4 = unpolished ice; 0 = clear glass.
+   ior 1.31         : the real measured index of refraction of
+                      water ice (glass is ~1.5, diamond 2.4). This
+                      controls HOW MUCH the logo warps.
+   thickness 2.2    : tells the volume renderer the object is a
+                      solid block ~2.2 units deep, not a hollow
+                      shell — deeper volume = heavier distortion.
+   attenuation      : the glacial blue tint light picks up while
+                      travelling through the volume (Beer's law).
+   ============================================================== */
+const iceMaterial = new THREE.MeshPhysicalMaterial({
+  color: 0xe8f1f8,
+  metalness: 0,
+  roughness: 0.3,
+  transmission: 1.0,
+  ior: 1.31,
+  thickness: 2.2,
+  attenuationColor: new THREE.Color(0x9cc8e0),
+  attenuationDistance: 2.8,
+  clearcoat: 0.6,               // thin melt-sheen on the outer surface
+  clearcoatRoughness: 0.25,
+  envMapIntensity: 1.5,
+  flatShading: true,            // jagged facets, each catching light alone
+});
+
+const crystal = new THREE.Mesh(crystalGeo, iceMaterial);
+
+/* ==============================================================
+   5. THE TRAPPED LOGO — the mesh-in-mesh technique
+   --------------------------------------------------------------
+   A flat plane parked INSIDE the crystal volume. Three.js renders
+   opaque objects first, then the transmissive crystal samples
+   that image through its volume — so the plane is refracted,
+   smeared, and doubled by the jagged facets in real time. The
+   texture is generated on a canvas so the file stays standalone.
+   MeshBasicMaterial: unlit -> the logo stays punchy inside the
+   dim volume. toneMapped false keeps its whites at full blast.
+   ============================================================== */
+function makeLogoTexture() {
+  const c = document.createElement('canvas');
+  c.width = c.height = 512;
+  const x = c.getContext('2d');
+  // rounded dark tile, app-icon style
+  x.fillStyle = '#10161f';
+  x.beginPath();
+  x.roundRect(36, 36, 440, 440, 72);
+  x.fill();
+  // gold accent bar
+  x.fillStyle = '#c8a97e';
+  x.fillRect(96, 336, 320, 14);
+  // bold monogram
+  x.fillStyle = '#f2f6fa';
+  x.font = '900 210px Arial Black, Arial, sans-serif';
+  x.textAlign = 'center';
+  x.textBaseline = 'middle';
+  x.fillText('JA', 256, 218);
+  // caption
+  x.fillStyle = '#7d8894';
+  x.font = '700 34px Consolas, monospace';
+  x.fillText('EST. 2026', 256, 408);
+  const tex = new THREE.CanvasTexture(c);
+  tex.colorSpace = THREE.SRGBColorSpace;
+  tex.anisotropy = 8;
+  return tex;
+}
+
+const logo = new THREE.Mesh(
+  new THREE.PlaneGeometry(1.5, 1.5),
+  new THREE.MeshBasicMaterial({
+    map: makeLogoTexture(),
+    side: THREE.DoubleSide,     // readable from behind as the group spins
+    toneMapped: false,          // full-brightness whites inside the ice
+  })
+);
+// dead center of the crystal; tiny tilt so facets slice it obliquely
+logo.rotation.set(-0.08, 0.15, 0);
+
+/* one group = crystal + logo rotate together, refraction plays
+   across the logo as the facet angles change */
+const group = new THREE.Group();
+group.add(crystal, logo);
+scene.add(group);
+
+/* ==============================================================
+   6. LIGHTS — sparkle on top of the environment
+   --------------------------------------------------------------
+   The env map does the heavy lifting; these two just add sharp
+   specular kicks so facet edges flash as the crystal turns.
+   ============================================================== */
+const key = new THREE.DirectionalLight(0xffffff, 2.4);
+key.position.set(4, 6, 5);
+scene.add(key);
+
+const rim = new THREE.DirectionalLight(0x7fb8ff, 1.6);   // cold blue rim
+rim.position.set(-5, -3, -4);
+scene.add(rim);
+
+/* ==============================================================
+   7. CONTROLS + ANIMATION
+   ============================================================== */
+const controls = new OrbitControls(camera, renderer.domElement);
+controls.enableDamping = true;      // inertial, high-end feel
+controls.dampingFactor = 0.06;
+controls.minDistance = 3;
+controls.maxDistance = 12;
+
+const clock = new THREE.Clock();
+function animate() {
+  requestAnimationFrame(animate);
+  const dt = Math.min(clock.getDelta(), 0.05);
+
+  // slow continuous turn + a lazy nod, so refraction never sits still
+  group.rotation.y += dt * 0.25;
+  group.rotation.x = Math.sin(clock.elapsedTime * 0.3) * 0.12;
+
+  controls.update();
+  renderer.render(scene, camera);
+}
+animate();
+
+window.addEventListener('resize', () => {
+  camera.aspect = window.innerWidth / window.innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(window.innerWidth, window.innerHeight);
+});
+
+// debug handle (harmless in production, invaluable in DevTools)
+window.__CRYSTAL__ = { renderer, scene, camera, group, crystal, logo, iceMaterial };
+</script>
+</body>
+</html>

@@ -1,0 +1,121 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>J-ANOS GRAPHIX — We Build Worlds</title>
+  <meta name="description" content="Creative agency specializing in 3D pre-visualization, product rendering, branding, web design, and motion graphics." />
+  <link rel="stylesheet" href="/src/style.css" />
+</head>
+<body>
+
+  <!-- ============================================================
+       FIXED WEBGL CANVAS — the Three.js stage, pinned behind the DOM
+       ============================================================ -->
+  <canvas id="webgl"></canvas>
+
+  <!-- ============================================================
+       BACKGROUND DATA LAYER — giant blurred telemetry tokens
+       drifting in the fog (populated by dataLayer.js)
+       ============================================================ -->
+  <div id="data-layer" aria-hidden="true"></div>
+
+  <!-- ============================================================
+       HUD — 3D-anchored callouts (populated by hud.js) + one SVG
+       overlay for the leader lines
+       ============================================================ -->
+  <svg id="hud-lines" aria-hidden="true"></svg>
+  <div id="hud" aria-hidden="true"></div>
+
+  <!-- ============================================================
+       WHITEOUT — fullscreen overlay driven by scroll position
+       ============================================================ -->
+  <div id="whiteout" aria-hidden="true"></div>
+
+  <!-- ============================================================
+       RING FLASH — brief pulse when camera passes through each ring
+       ============================================================ -->
+  <div id="ring-flash" aria-hidden="true"></div>
+
+  <!-- ============================================================
+       LOOP FLASH — warp-flash when scrolling past footer back to hero
+       ============================================================ -->
+  <div id="loop-flash" aria-hidden="true"></div>
+
+  <!-- ============================================================
+       CORNER UI: logo + copyright top/left,
+       manifesto top-right, sound + scroll hint bottom-left
+       ============================================================ -->
+  <header class="corner corner--tl">
+    <a href="#" class="logo" data-glitch>J-ANOS//GRAPHIX</a>
+    <div class="corner__block">
+      <span>// COPYRIGHT &copy; 2026</span>
+      <span>J-ANOS GRAPHIX, INC.</span>
+      <span>ALL RIGHTS RESERVED.</span>
+    </div>
+  </header>
+
+  <aside class="corner corner--tr">
+    <span class="corner__kicker" data-glitch>////// MANIFESTO</span>
+    <p class="corner__manifesto">
+      WE BUILD WORLDS FROM LIGHT AND GEOMETRY —
+      SCROLL-DRIVEN EXPERIENCES FORGED AT THE INTERSECTION
+      OF DESIGN, MOTION, AND CODE.
+    </p>
+  </aside>
+
+  <footer class="corner corner--bl">
+    <button id="sound-toggle" class="corner__sound">
+      <span class="corner__sound-icon">&#128264;</span>
+      <span data-glitch>SOUND: OFF</span>
+    </button>
+    <span class="corner__hint" data-glitch>SCROLL TWICE TO ADVANCE</span>
+  </footer>
+
+  <!-- ============================================================
+       SCROLL PROGRESS — thin gradient line, right edge
+       ============================================================ -->
+  <div id="scroll-progress" aria-hidden="true"></div>
+
+  <!-- ============================================================
+       LOADER — dot-matrix progress, removed by main.js when the
+       wireframe intro starts
+       ============================================================ -->
+  <div id="loader">
+    <span id="loader-bar">&#9642;&#9643;&#9643;&#9643;&#9643;&#9643;&#9643;&#9643; 000%</span>
+  </div>
+
+  <!-- ============================================================
+       SCROLL CONTENT — invisible spacers; one per section.
+       ============================================================ -->
+  <main id="scroll-content">
+    <section class="beat" id="beat-hero"></section>
+    <section class="beat" id="beat-01"></section>
+    <section class="beat" id="beat-02"></section>
+    <section class="beat" id="beat-portal"></section>
+    <section class="beat beat--footer" id="beat-footer">
+      <nav class="footer__links">
+        <a href="https://web.facebook.com/profile.php?fb_profile_edit_entry_point=%7B%22click_point%22%3A%22edit_profile_button%22%2C%22feature%22%3A%22profile_header%22%7D&id=61568439451882&sk=about" target="_blank" rel="noopener" data-glitch>FACEBOOK</a>
+        <a href="https://www.linkedin.com/in/jurry-anos-ba1103421" target="_blank" rel="noopener" class="is-active" data-glitch>LINKEDIN</a>
+        <a href="mailto:ayensajurry11@gmail.com" data-glitch>GMAIL</a>
+      </nav>
+      <p class="footer__credit">INSPIRED BY <a href="https://igloo.inc" target="_blank" rel="noopener">IGLOO.INC</a></p>
+    </section>
+  </main>
+
+  <!-- ============================================================
+       FOOTER TOOLTIP — hover card with connecting line
+       ============================================================ -->
+  <div id="footer-tooltip" class="footer-tooltip" aria-hidden="true">
+    <svg class="footer-tooltip__svg" width="200" height="100" style="position:absolute; top:-100px; left:50%; transform:translateX(-50%); pointer-events:none;">
+      <line class="footer-tooltip__line" x1="100" y1="100" x2="100" y2="20"/>
+    </svg>
+    <a href="#" target="_blank" rel="noopener" class="footer-tooltip__card">
+      <span class="footer-tooltip__name"></span>
+      <span class="footer-tooltip__url"></span>
+    </a>
+  </div>
+
+  <script type="module" src="/src/main.js"></script>
+</body>
+</html>
