@@ -9,7 +9,7 @@ const STORAGE_KEY = 'janos-site-config';
 
 /* ---- default site config ------------------------------------ */
 const DEFAULTS = {
-  brandName: 'J-ANOS//GRAPHIX',
+  brandName: 'J-ANOS',
   tagline: 'WE BUILD WORLDS FROM LIGHT AND GEOMETRY',
   crystal1Title: 'BRANDING PORTFOLIO',
   crystal1Subtitle: 'VISUAL IDENTITY & BRAND SYSTEMS',
